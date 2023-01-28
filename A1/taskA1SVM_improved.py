@@ -15,7 +15,12 @@ from sklearn.metrics import classification_report,accuracy_score,confusion_matri
 import pandas as pd
 from sklearn.datasets import load_iris
 from sklearn.linear_model import LogisticRegression
-
+from sklearn.model_selection import cross_val_score
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.neighbors import KNeighborsClassifier
 # PATH TO ALL IMAGES
 global basedir, image_paths, target_size
 basedir = './Datasets'
@@ -23,8 +28,6 @@ images_dir = os.path.join(basedir,'celeba')
 test_images_dir = os.path.join(basedir,'celeba_test')
 labels_filename = 'labels.csv'
 
-detector = dlib.get_frontal_face_detector()
-predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
 
 
 # how to find frontal human faces in an image using 68 landmarks.  These are points on the face such as the corners of the mouth, along the eyebrows, on the eyes, and so forth.
@@ -39,6 +42,9 @@ predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
 #     C. Sagonas, E. Antonakos, G, Tzimiropoulos, S. Zafeiriou, M. Pantic.
 #     300 faces In-the-wild challenge: Database and results.
 #     Image and Vision Computing (IMAVIS), Special Issue on Facial Landmark Localisation "In-The-Wild". 2016.
+
+detector = dlib.get_frontal_face_detector()
+predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
 
 
 def shape_to_np(shape, dtype="int"):
@@ -142,47 +148,124 @@ def extract_features_labels(test = False):
 
 def get_training_data():
     X, y = extract_features_labels()
-    Y = np.array([y, -(y - 1)]).T
+    Y = np.array(y).T
     return X, Y
 
 def get_testing_data():
     X, y = extract_features_labels(test=True)
-    Y = np.array([y, -(y - 1)]).T
+    Y = np.array(y).T
     return X, Y
 
-def img_SVM(training_images, training_labels, test_images, test_labels):
-    print("SVM")
+def img_SVM_with_cv(training_images, training_labels):
+    print("SVM with Cross-Validation")
     classifier = SVC(kernel='linear')
+    cv_scores = cross_val_score(classifier, training_images, training_labels, cv=5)
+    print("Cross-Validation Scores:", cv_scores)
+    print("Mean Score:", np.mean(cv_scores))
+    print("Standard Deviation:", np.std(cv_scores))
 
-    classifier.fit(training_images, training_labels)
-
-    pred = classifier.predict(test_images)
-
-    print(pred)
-
-    print("Accuracy:", accuracy_score(test_labels, pred))
-
-def img_logistic_regression(training_images, training_labels, test_images, test_labels):
-    print("Logistic Regression")
+def img_logistic_regression_with_cv(training_images, training_labels):
+    print("Logistic Regression with Cross-Validation")
     classifier = LogisticRegression(max_iter=5000)
+    cv_scores = cross_val_score(classifier, training_images, training_labels, cv=5)
+    print("Cross-Validation Scores:", cv_scores)
+    print("Mean Score:", np.mean(cv_scores))
+    print("Standard Deviation:", np.std(cv_scores))
 
-    classifier.fit(training_images, training_labels)
 
-    pred = classifier.predict(test_images)
-    print(pred)
-    print(confusion_matrix(test_labels, pred))
-    print('Accuracy on test set: '+str(accuracy_score(test_labels,pred)))
-    print(classification_report(test_labels,pred))#text report showing the main classification metrics
 
+def img_random_forest_with_cv(training_images, training_labels):
+    print("Random Forest with Cross-Validation")
+    classifier = RandomForestClassifier()
+    cv_scores = cross_val_score(classifier, training_images, training_labels, cv=5)
+    print("Cross-Validation Scores:", cv_scores)
+    print("Mean Score:", np.mean(cv_scores))
+    print("Standard Deviation:", np.std(cv_scores))
+
+def img_decision_tree_with_cv(training_images, training_labels):
+    print("Decision Tree with Cross-Validation")
+    classifier = DecisionTreeClassifier()
+    cv_scores = cross_val_score(classifier, training_images, training_labels, cv=5)
+    print("Cross-Validation Scores:", cv_scores)
+    print("Mean Score:", np.mean(cv_scores))
+    print("Standard Deviation:", np.std(cv_scores))
+
+def img_mlp_with_cv(training_images, training_labels):
+    print("MLP with Cross-Validation")
+    classifier = MLPClassifier()
+    cv_scores = cross_val_score(classifier, training_images, training_labels, cv=5)
+    print("Cross-Validation Scores:", cv_scores)
+    print("Mean Score:", np.mean(cv_scores))
+    print("Standard Deviation:", np.std(cv_scores))
+
+def img_SVM_with_randomized_search(training_images, training_labels):
+    print("SVM with Randomized Search")
+    classifier = SVC(kernel='linear')
+    param_distributions = {'C': np.logspace(-3, 3, 7), 'kernel': ['linear']}
+    random_search = RandomizedSearchCV(classifier, param_distributions, cv=5, n_iter=10)
+    random_search.fit(training_images, training_labels)
+    print("Best Parameters:", random_search.best_params_)
+    print("Best Score:", random_search.best_score_)
+
+def img_logistic_regression_with_randomized_search(training_images, training_labels):
+    print("Logistic Regression with Randomized Search")
+    classifier = LogisticRegression(max_iter=5000)
+    param_distributions = {'C': np.logspace(-3, 3, 7), 'penalty': ['l1', 'l2']}
+    random_search = RandomizedSearchCV(classifier, param_distributions, cv=5, n_iter=10)
+    random_search.fit(training_images, training_labels)
+    print("Best Parameters:", random_search.best_params_)
+    print("Best Score:", random_search.best_score_)
+
+def img_random_forest_with_randomized_search(training_images, training_labels):
+    print("Random Forest with Randomized Search")
+    classifier = RandomForestClassifier()
+    param_distributions = {'n_estimators': np.arange(10, 100, 10), 'max_depth': np.arange(1, 11)}
+    random_search = RandomizedSearchCV(classifier, param_distributions, cv=5, n_iter=10)
+    random_search.fit(training_images, training_labels)
+    print("Best Parameters:", random_search.best_params_)
+    print("Best Score:", random_search.best_score_)
+
+def img_decision_tree_with_randomized_search(training_images, training_labels):
+    print("Decision Tree with Randomized Search")
+    classifier = DecisionTreeClassifier()
+    param_distributions = {'max_depth': np.arange(1, 11)}
+    random_search = RandomizedSearchCV(classifier, param_distributions, cv=5, n_iter=10)
+    random_search.fit(training_images, training_labels)
+    print("Best Parameters:", random_search.best_params_)
+    print("Best Score:", random_search.best_score_)
+
+def img_KNN_with_randomized_search(training_images, training_labels):
+    print("K-Nearest Neighbors with Randomized Search")
+    classifier = KNeighborsClassifier()
+    param_distributions = {'n_neighbors': np.arange(1, 30), 'weights': ['uniform', 'distance']}
+    random_search = RandomizedSearchCV(classifier, param_distributions, cv=5, n_iter=10)
+    random_search.fit(training_images, training_labels)
+    print("Best Parameters:", random_search.best_params_)
+    print("Best Score:", random_search.best_score_)
 
 def main():
     tr_X, tr_Y = get_training_data()
-    te_X, te_Y = get_testing_data()
+    #te_X, te_Y = get_testing_data()
 
-
-    img_SVM(tr_X.reshape((tr_X.shape[0], 68*2)), list(zip(*tr_Y))[0], te_X.reshape((te_X.shape[0], 68*2)), list(zip(*te_Y))[0])
-    img_logistic_regression(tr_X.reshape((tr_X.shape[0], 68*2)), list(zip(*tr_Y))[0], te_X.reshape((te_X.shape[0], 68*2)), list(zip(*te_Y))[0])
+    # Use the new functions that perform cross-validation
+    img_SVM_with_cv(tr_X.reshape((tr_X.shape[0], 68*2)), tr_Y)
+    print(" ")
+    img_SVM_with_randomized_search(tr_X.reshape((tr_X.shape[0], 136)), tr_Y)
+    print(" ")
+    img_logistic_regression_with_cv(tr_X.reshape((tr_X.shape[0], 68*2)), tr_Y)
+    print(" ")
+    img_logistic_regression_with_randomized_search(tr_X.reshape((tr_X.shape[0], 136)), tr_Y)
+    print(" ")
+    img_random_forest_with_cv(tr_X.reshape((tr_X.shape[0], 68*2)), tr_Y)
+    print(" ")
+    img_random_forest_with_randomized_search(tr_X.reshape((tr_X.shape[0], 136)), tr_Y)
+    print(" ")
+    img_decision_tree_with_cv(tr_X.reshape((tr_X.shape[0], 68*2)), tr_Y)
+    print(" ")
+    img_decision_tree_with_randomized_search(tr_X.reshape((tr_X.shape[0], 136)), tr_Y)
+    print(" ")
+    img_mlp_with_cv(tr_X.reshape((tr_X.shape[0], 68*2)), tr_Y)
+    print(" ")
+    img_KNN_with_randomized_search(tr_X.reshape((tr_X.shape[0], 136)), tr_Y)
 
 main()
-    
-    
