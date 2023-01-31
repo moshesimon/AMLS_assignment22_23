@@ -19,7 +19,7 @@ cartoon_test_labels_dir = os.path.join(dataset_dir,'cartoon_set_test', 'labels.c
 
 run_a1 = False
 run_a2 = False
-run_b1 = True
+run_b1 = False
 run_b2 = True
 
 if run_a1 or run_a2:
@@ -47,13 +47,26 @@ if run_a2:
     a2 = A2()
     #a2.SVM_with_cv(features, smiling_labels)
 
-if run_b1 or run_b2:
-    train_cartoon_images = load_images(images_dir=cartoon_images_dir,file_type='png', num_imgs=5000) # load images
-    test_cartoon_images = load_images(images_dir=cartoon_test_images_dir,file_type='png', num_imgs=1000) # load images
+if run_b1:
+    train_cartoon_images = load_images(images_dir=cartoon_images_dir,file_type='png', num_imgs=10000) # load images
+    test_cartoon_images = load_images(images_dir=cartoon_test_images_dir,file_type='png', num_imgs=2500) # load images
+
+    train_cartoon_labels = load_labels(label_dir=cartoon_labels_dir, label_col_name='face_shape')
+    test_cartoon_labels = load_labels(label_dir=cartoon_test_labels_dir, label_col_name='face_shape')
+    b1 = B1(train_cartoon_images, train_cartoon_labels, test_cartoon_images, test_cartoon_labels)
+    b1.train_CNN()
+
+if run_b2:
+    train_cartoon_images_colour = load_images(images_dir=cartoon_images_dir,file_type='png', num_imgs=10000, grayscale=False) # load images
+    test_cartoon_images_colour = load_images(images_dir=cartoon_test_images_dir,file_type='png', num_imgs=2500, grayscale=False) # load images
     
     train_cartoon_labels = load_labels(label_dir=cartoon_labels_dir, label_col_name='eye_color')
     test_cartoon_labels = load_labels(label_dir=cartoon_test_labels_dir, label_col_name='eye_color')
-
-if run_b1:
-    b1 = B1(train_cartoon_images, train_cartoon_labels, test_cartoon_images, test_cartoon_labels)
-    b1.train_CNN()
+    
+    x_train, y_train = extract_eyes(train_cartoon_images_colour, train_cartoon_labels)
+    x_test, y_test = extract_eyes(test_cartoon_images_colour, test_cartoon_labels)
+    b2 = B2(x_train, y_train, x_test, y_test)
+    b2.build_model(width=23, height=32, learning_rate=0.001)
+    b2.train(epoch=10, batch_size=32)
+    b2.evaluate()
+    b2.plot()

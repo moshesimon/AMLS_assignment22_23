@@ -136,3 +136,23 @@ def extract_features_labels(images, gender_labels, smiling_labels):
     features = np.array(all_features)
     features = features.reshape((features.shape[0], 68*2))
     return features, gender_labels, smiling_labels
+
+def extract_eyes(images, eye_labels):
+    all_eyes = []
+    for i, img in enumerate(images):
+        if has_sunglasses(img):
+            eye_labels = np.delete(eye_labels, i, axis=0)
+            eye_labels = np.insert(eye_labels,0,-5,axis=0)
+            continue
+        eye = img[257:273,198:227]
+        all_eyes.append(eye)
+    eyes = np.array(all_eyes)
+    return eyes, eye_labels
+
+def has_sunglasses(image):
+    #check if the person is wearing sunglasses
+    white_of_the_eye = image[265:280,218:222]
+    x = white_of_the_eye.flatten()
+    if np.average(x) < 200:
+        return True
+    return False
