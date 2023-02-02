@@ -1,131 +1,88 @@
-import tensorflow as tf
+from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV, learning_curve
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix, accuracy_score
 import numpy as np
-
-# MNIST dataset parameters.
-num_classes = 5 # total classes (0-9 digits).
-
-# Training parameters.
-learning_rate = 0.001
-training_steps = 78
-batch_size = 128
-display_step = 10
-
-# Network parameters.
-conv1_filters = 32 # number of filters for 1st conv layer.
-conv2_filters = 64 # number of filters for 2nd conv layer.
-fc1_units = 1024 # number of neurons for 1st fully-connected layer.
-
-
-class ConvNet(tf.keras.Model):
-    # Set layers.
-    def __init__(self):
-        super(ConvNet, self).__init__()
-        # Convolution Layer with 32 filters and a kernel size of 5.
-        self.conv1 = tf.keras.layers.Conv2D(32, kernel_size=5, activation=tf.nn.relu)
-        # Max Pooling (down-sampling) with kernel size of 2 and strides of 2. 
-        self.maxpool1 = tf.keras.layers.MaxPool2D(2, strides=2)
-
-        # Convolution Layer with 64 filters and a kernel size of 3.
-        self.conv2 = tf.keras.layers.Conv2D(64, kernel_size=3, activation=tf.nn.relu)
-        # Max Pooling (down-sampling) with kernel size of 2 and strides of 2. 
-        self.maxpool2 = tf.keras.layers.MaxPool2D(2, strides=2)
-
-        # Flatten the data to a 1-D vector for the fully connected layer.
-        self.flatten = tf.keras.layers.Flatten()
-
-        # Fully connected layer.
-        self.fc1 = tf.keras.layers.Dense(1024)
-        # Apply Dropout (if is_training is False, dropout is not applied).
-        self.dropout = tf.keras.layers.Dropout(rate=0.5)
-
-        # Output layer, class prediction.
-        self.out = tf.keras.layers.Dense(num_classes)
-
-    # Set forward pass.
-    def call(self, x, is_training=False):
-        x = tf.reshape(x, [-1, 500, 500, 3])
-        x = self.conv1(x)
-        x = self.maxpool1(x)
-        x = self.conv2(x)
-        x = self.maxpool2(x)
-        x = self.flatten(x)
-        x = self.fc1(x)
-        x = self.dropout(x, training=is_training)
-        x = self.out(x)
-        if not is_training:
-            # tf cross entropy expect logits without softmax, so only
-            # apply softmax when not training.
-            x = tf.nn.softmax(x)
-        return x
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dense, Flatten, Rescaling
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.losses import BinaryCrossentropy
 
 class B1:
-    def __init__(self, train_data, train_labels, test_data, test_labels):
-        self.train_data = train_data
-        self.train_labels = train_labels
-        self.test_data = test_data
-        self.test_labels = test_labels 
 
-    # Cross-Entropy Loss.
-    # Note that this will apply 'softmax' to the logits.
-    def cross_entropy_loss(self, x, y):
-        # Convert labels to int 64 for tf cross-entropy function.
-        y = tf.cast(y, tf.int64)
-        # Apply softmax to logits and compute cross-entropy.
-        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=x)
-        # Average loss across the batch.
-        return tf.reduce_mean(loss)
+    def evaluate_best_model(self,X_test,Y_test):
+        self.best_model = self.grid.best_estimator_
+        self.label_test_predict = self.best_model.predict(X_test)
+        self.best_model_score = accuracy_score(Y_test, self.label_test_predict)
+        self.conf_matrix = confusion_matrix(Y_test, self.label_test_predict)
+        print("Best Parameters:", self.grid.best_params_)
+        print("Best Model Score:", self.best_model_score)
+        print("Confusion Matrix:", self.conf_matrix)
 
-    # Accuracy metric.
-    def accuracy(self, y_pred, y_true):
-        # Predicted class is the index of highest score in prediction vector (i.e. argmax).
-        correct_prediction = tf.equal(tf.argmax(y_pred, 1), tf.cast(y_true, tf.int64))
-        return tf.reduce_mean(tf.cast(correct_prediction, tf.float32), axis=-1)
+    def draw_SVM_learning_curve(self, X_train,Y_train,):
+        classifier = SVC(C=self.grid.best_params_['C'], kernel=self.grid.best_params_['kernel'])
+        train_sizes, train_scores, val_scores = learning_curve(
+                classifier, X_train, Y_train, cv=5, scoring='neg_root_mean_squared_error',train_sizes=np.linspace(0.01, 1.0, 15)
+            )
+        plt.style.use('seaborn')
+        train_scores_mean = -np.mean(train_scores, axis=1)
+        val_scores_mean = -np.mean(val_scores, axis=1)
+        plt.plot(train_sizes, train_scores_mean, label="Training score")
+        plt.plot(train_sizes, val_scores_mean, label="Cross-validation score")
+        plt.ylabel('RMSE', fontsize = 14)
+        plt.xlabel('Training set size', fontsize = 14)
+        plt.title('Learning curve for a SVM model', fontsize = 18, y = 1.03)
+        plt.legend()
+        plt.show()
 
-    # Stochastic gradient descent optimizer.
+    def SVM_with_GridSearchCV(self, X_train,Y_train, C, kernel):
+        print("SVM with GridSearchCV")
+        param_grid = { "C": C, "kernel": kernel }
+        classifier = SVC()
+        grid = GridSearchCV(classifier, param_grid, refit=True, verbose=3, cv=5)
+        grid.fit(X_train, Y_train)
+        self.grid = grid
+
+    def SVM(self, X_train,Y_train, X_test,Y_test):
+        print("SVM")
+        classifier = SVC()
+        classifier.fit(X_train, Y_train)
+        pred = classifier.predict(X_test)
+        print("Accuracy:", accuracy_score(Y_test, pred))
     
+    def train_CNN(self,X_train,Y_train, epochs=10, batch_size=32, learning_rate=0.0001):
+        # Define the model architecture
+        self.model = Sequential()
+        self.model.add(Rescaling(1./255, input_shape=(X_train.shape[1],X_train.shape[2],1)))
+        self.model.add(Conv2D(16, kernel_size=(3,3), activation='relu'))
+        self.model.add(MaxPooling2D(pool_size=(2, 2)))
+        self.model.add(Conv2D(32, kernel_size=(3,3), activation='relu'))
+        self.model.add(MaxPooling2D(pool_size=(2, 2)))
+        self.model.add(Conv2D(64, kernel_size=(3,3), activation='relu'))
+        self.model.add(MaxPooling2D(pool_size=(2, 2)))
+        self.model.add(Flatten())
+        self.model.add(Dense(128, activation='relu'))
+        self.model.add(Dense(5, activation='sigmoid'))
 
-    # Optimization process. 
-    def run_optimization(self, x, y):
-        # Wrap computation inside a GradientTape for automatic differentiation.
-        with tf.GradientTape() as g:
-            # Forward pass.
-            pred = self.conv_net(x, is_training=True)
-            # Compute loss.
-            loss = self.cross_entropy_loss(pred, y)
-            
-        # Variables to update, i.e. trainable variables.
-        trainable_variables = self.conv_net.trainable_variables
+        # Compile the model
+        self.model.compile(optimizer=Adam(learning_rate=learning_rate), loss=BinaryCrossentropy(), metrics=['accuracy'])
+        self.model.summary()
+        Y_train = tf.one_hot(Y_train, 5)
+        self.history = self.model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size, validation_split=0.2, verbose=1, shuffle=True, use_multiprocessing=True)
 
-        # Compute gradients.
-        gradients = g.gradient(loss, trainable_variables)
-        
-        # Update W and b following gradients.
-        self.optimizer.apply_gradients(zip(gradients, trainable_variables))
-
-    def train_CNN(self):
-        # Build neural network model.
-        self.conv_net = ConvNet()
-        self.optimizer = tf.optimizers.Adam(learning_rate)
-
-        x_train, x_test = np.array(self.train_data, np.float32), np.array(self.test_data, np.float32)
-        # Normalize images value from [0, 255] to [0, 1].
-        x_train, x_test = x_train / 255., x_test / 255.
-
-        # Use tf.data API to shuffle and batch data.
-        train_data = tf.data.Dataset.from_tensor_slices((x_train, self.train_labels))
-        train_data = train_data.repeat().shuffle(5000).batch(batch_size).prefetch(1)
-
-    # Run training for the given number of steps.
-        for step, (batch_x, batch_y) in enumerate(train_data.take(training_steps), 1):
-            # Run the optimization to update W and b values.
-            self.run_optimization(batch_x, batch_y)
-            print(step)
-            if step % display_step == 0:
-                pred = self.conv_net(batch_x)
-                loss = self.cross_entropy_loss(pred, batch_y)
-                acc = self.accuracy(pred, batch_y)
-                print("step: %i, loss: %f, accuracy: %f" % (step, loss, acc))
-
-        # Test model on validation set.
-        pred = self.conv_net(x_test)
-        print("Test Accuracy: %f" % self.accuracy(pred, self.test_labels))
+    def evaluate_CNN(self,X_test,Y_test):
+        Y_test = tf.one_hot(Y_test, 5)
+        test_loss, test_acc = self.model.evaluate(X_test, Y_test, verbose=2)
+        print('Test accuracy:', test_acc)
+        print("Test Loss:", test_loss)
+    
+    def draw_CNN_learning_curve(self):
+        plt.style.use('seaborn')
+        plt.plot(self.history.history['accuracy'], label='Training Accuracy')
+        plt.plot(self.history.history['val_accuracy'], label='Validation Accuracy')
+        plt.title('Training and Validation Accuracy')
+        plt.ylabel('Accuracy')
+        plt.xlabel('Epoch')
+        plt.legend(loc='lower right')
+        plt.show()
