@@ -31,7 +31,7 @@ def shape_to_np(shape, dtype="int"):
     coords = np.zeros((shape.num_parts, 2), dtype=dtype)
 
     # loop over all facial landmarks and convert them
-    # to a 2-tuple of (x, y)-coordinates
+    # to a 2-tuple of (x, y)-coordiates
     for i in range(0, shape.num_parts):
         coords[i] = (shape.part(i).x, shape.part(i).y)
 
@@ -110,7 +110,7 @@ def load_images(images_dir, file_type, num_imgs, grayscale=True):
 
     return images
 
-def extract_features_labels(images, gender_labels, smiling_labels):
+def extract_features_labels(images, labels_1, labels_2 = False):
     """
     This funtion extracts the landmarks features for all images in the folder 'dataset/celeba'.
     It also extract the gender label for each image.
@@ -126,16 +126,18 @@ def extract_features_labels(images, gender_labels, smiling_labels):
         if features is not None:
             all_features.append(features)
         else:
-            gender_labels = np.delete(gender_labels, i, axis=0)
-            gender_labels = np.insert(gender_labels,0,-5,axis=0) # insert -5 to the first row to the indexes constant
-            smiling_labels = np.delete(smiling_labels, i, axis=0) 
-            smiling_labels = np.insert(smiling_labels,0,-5,axis=0) # insert -5 to the first row to the indexes constant
+            labels_1 = np.delete(labels_1, i, axis=0)
+            labels_1 = np.insert(labels_1,0,-5,axis=0) # insert -5 to the first row to the indexes constant
+            if labels_2 is not False:
+                labels_2 = np.delete(labels_2, i, axis=0) 
+                labels_2 = np.insert(labels_2,0,-5,axis=0) # insert -5 to the first row to the indexes constant
 
-    gender_labels = gender_labels[gender_labels != -5]
-    smiling_labels = smiling_labels[smiling_labels != -5]
+    labels_1 = labels_1[labels_1 != -5]
+    if labels_2 is not False:
+        labels_2 = labels_2[labels_2 != -5]
     features = np.array(all_features)
     features = features.reshape((features.shape[0], 68*2))
-    return features, gender_labels, smiling_labels
+    return features, labels_1, labels_2
 
 def extract_eyes(images, eye_labels):
     all_eyes = []
@@ -144,9 +146,10 @@ def extract_eyes(images, eye_labels):
             eye_labels = np.delete(eye_labels, i, axis=0)
             eye_labels = np.insert(eye_labels,0,-5,axis=0)
             continue
-        eye = img[257:273,198:227]
+        eye = img[250:273,190:222]
         all_eyes.append(eye)
     eyes = np.array(all_eyes)
+    eye_labels = eye_labels[eye_labels != -5]
     return eyes, eye_labels
 
 def has_sunglasses(image):

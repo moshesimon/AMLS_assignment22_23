@@ -44,9 +44,9 @@ class B1:
         grid.fit(X_train, Y_train)
         self.grid = grid
 
-    def SVM(self, X_train,Y_train, X_test,Y_test):
+    def SVM(self, X_train,Y_train, X_test,Y_test, C, kernel):
         print("SVM")
-        classifier = SVC()
+        classifier = SVC(C=C, kernel=kernel)
         classifier.fit(X_train, Y_train)
         pred = classifier.predict(X_test)
         print("Accuracy:", accuracy_score(Y_test, pred))
